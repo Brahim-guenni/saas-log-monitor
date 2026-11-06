@@ -1,0 +1,21 @@
+# Secrets et configuration locale
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Donnees importees / generees (on garde seulement le dossier)
+data/uploads/*
+!data/uploads/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
