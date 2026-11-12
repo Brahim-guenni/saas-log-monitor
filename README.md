@@ -36,6 +36,9 @@ python scripts/generate_logs.py -n 5000 -f json -o data/uploads/logs_test
 Logstash lit `data/uploads/*.json` et indexe dans `saas-logs-YYYY.MM.dd`.
 Dans Kibana : **Stack Management → Data Views → Create** → pattern `saas-logs-*`, champ temps `@timestamp`, puis **Discover**.
 
+Les pipelines S2 acceptent les fichiers JSON UTF-8 avec BOM et utilisent un identifiant
+deterministe pour dedupliquer les enregistrements JSON et CSV lors d'une relecture.
+
 ## Structure du dépôt
 ```
 saas-log-monitor/
