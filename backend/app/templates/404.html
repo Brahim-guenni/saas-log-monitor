@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Page introuvable · SaaS Log Monitor{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <h1>404</h1>
+  <p>La page demandée est introuvable.</p>
+  <a class="button" href="{{ url_for('dashboard') }}">Retour au dashboard</a>
+</section>
+{% endblock %}

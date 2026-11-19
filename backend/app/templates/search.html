@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Recherche · SaaS Log Monitor{% endblock %}
+{% block content %}
+<h1>Recherche des logs</h1>
+<section class="panel">
+  <form id="search-form" class="search-form">
+    <label>Texte libre<input name="q" type="search" placeholder="message, endpoint, service..."></label>
+    <label>Gravité
+      <select name="level"><option value="">Toutes</option><option>INFO</option><option>WARN</option><option>ERROR</option><option>CRITICAL</option></select>
+    </label>
+    <label>Service<input name="service" type="text"></label>
+    <label>Endpoint<input name="endpoint" type="text"></label>
+    <label>Code HTTP<input name="status_code" type="number" min="100" max="599"></label>
+    <label>Début<input name="date_from" type="datetime-local"></label>
+    <label>Fin<input name="date_to" type="datetime-local"></label>
+    <label>Tri
+      <select name="sort"><option value="date_desc">Date décroissante</option><option value="date_asc">Date croissante</option></select>
+    </label>
+  </form>
+  <div class="actions">
+    <button id="search-button" class="button" type="button">Rechercher</button>
+    <button id="reset-button" class="button button-secondary" type="button">Réinitialiser</button>
+  </div>
+  <div id="loading" class="loading" hidden>Chargement...</div>
+</section>
+<section class="panel">
+  <h2 id="results-count">Résultats</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Niveau</th><th>Service</th><th>Message</th><th>Actions</th></tr></thead>
+      <tbody id="results-body"><tr><td colspan="5">Lancez une recherche.</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <button id="prev-page" class="button button-secondary" type="button">Précédent</button>
+    <span id="page-label">Page 1</span>
+    <button id="next-page" class="button" type="button">Suivant</button>
+  </div>
+</section>
+<dialog id="log-dialog" class="log-dialog">
+  <div class="panel">
+    <h2>Détails du log</h2>
+    <pre id="log-detail"></pre>
+    <button id="close-log-dialog" class="button" type="button">Fermer</button>
+  </div>
+</dialog>
+{% endblock %}

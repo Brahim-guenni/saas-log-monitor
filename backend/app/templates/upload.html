@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Upload · SaaS Log Monitor{% endblock %}
+{% block content %}
+<h1>Importer des logs</h1>
+<section class="panel">
+  <div id="drop-zone" class="drop-zone">
+    <p>Glissez-déposez un fichier CSV, JSON ou TXT ici</p>
+    <input id="file-input" type="file" accept=".csv,.json,.txt">
+  </div>
+  <div id="upload-progress" class="progress" hidden><div></div></div>
+  <div id="preview" class="preview"></div>
+  <div class="actions">
+    <button id="confirm-upload" class="button" type="button" hidden>Confirmer l'import</button>
+    <button id="cancel-upload" class="button button-secondary" type="button" hidden>Annuler</button>
+  </div>
+</section>
+<section class="panel">
+  <h2>Imports récents</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Fichier</th><th>Format</th><th>Taille</th><th>Statut</th><th>Date</th></tr></thead>
+      <tbody>
+      {% for item in imports %}
+        <tr>
+          <td>{{ item.filename }}</td><td>{{ item.extension or item.format }}</td>
+          <td>{{ item.size_bytes }} octets</td><td>{{ item.status }}</td>
+          <td>{{ item.uploaded_at }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">Aucun import récent.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

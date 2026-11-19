@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · SaaS Log Monitor{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="cards">
+  <article class="card"><span>Nombre de requêtes</span><strong>{{ stats.total_logs or 0 }}</strong></article>
+  <article class="card"><span>Erreurs 5xx</span><strong>{{ stats.errors_5xx or 0 }}</strong></article>
+  <article class="card"><span>Temps moyen</span><strong>{{ stats.average_response_ms or 0 }} ms</strong></article>
+  <article class="card"><span>Imports / alertes actives</span><strong>{{ stats.files_count or 0 }} / 0</strong></article>
+</div>
+<section class="panel">
+  <h2>Accès rapides</h2>
+  <div class="actions">
+    <a class="button" href="{{ url_for('upload_page') }}">Importer des logs</a>
+    <a class="button button-secondary" href="{{ url_for('search_page') }}">Rechercher</a>
+  </div>
+</section>
+{% endblock %}

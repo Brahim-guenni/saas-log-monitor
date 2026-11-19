@@ -10,7 +10,15 @@ import json
 from pathlib import Path
 
 from elasticsearch import Elasticsearch
-from flask import Flask, jsonify, render_template_string, request
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    render_template,
+    render_template_string,
+    request,
+    url_for,
+)
 from pymongo import MongoClient
 from redis import Redis
 from werkzeug.utils import secure_filename
@@ -134,13 +142,124 @@ def create_app():
             "redis": _check(lambda: redis.ping()),
         }
 
+    def browser_user():
+        return current_user()
+
+    def require_browser_login(fn):
+        @wraps(fn)
+        def protected(*args, **kwargs):
+            if browser_user() is None:
+                return redirect(url_for("login_page"))
+            return fn(*args, **kwargs)
+        return protected
+
     # Test de connectivite au demarrage (resultat journalise, ne bloque pas l'application)
     for name, res in run_checks().items():
         (log.info if res["status"] == "up" else log.warning)("Connexion %s : %s", name, res["status"])
 
     @app.get("/")
     def home():
-        return render_template_string(HOME)
+        if browser_user() is None:
+            return redirect(url_for("login_page"))
+        return redirect(url_for("dashboard"))
+
+    @app.get("/login")
+    def login_page():
+        if browser_user() is not None:
+            return redirect(url_for("dashboard"))
+        return render_template("login.html")
+
+    @app.post("/login")
+    def login_form():
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        user = users_collection.find_one({"email": email})
+        if (
+            user is None
+            or not user.get("active", False)
+            or not check_password_hash(user["password_hash"], password)
+        ):
+            return render_template(
+                "login.html",
+                error="Identifiants invalides ou compte désactivé.",
+            ), 401
+
+        token = secrets.token_urlsafe(32)
+        redis.setex(
+            f"session:{token}",
+            3600,
+            json.dumps({
+                "user_id": str(user["_id"]),
+                "email": user["email"],
+                "role": user["role"],
+            }),
+        )
+        response = redirect(url_for("dashboard"))
+        response.set_cookie(
+            "session_token",
+            token,
+            max_age=3600,
+            httponly=True,
+            samesite="Lax",
+        )
+        return response
+
+    @app.post("/logout")
+    def logout_page():
+        token = bearer_token()
+        if token:
+            redis.delete(f"session:{token}")
+        response = redirect(url_for("login_page"))
+        response.delete_cookie("session_token")
+        return response
+
+    @app.get("/dashboard")
+    @require_browser_login
+    def dashboard():
+        user = browser_user()
+        stats_data = {}
+        try:
+            stats_response = es.count(index="saas-logs-*")
+            errors_response = es.count(
+                index="saas-logs-*",
+                query={"range": {"status_code": {"gte": 500, "lt": 600}}},
+            )
+            average_response = es.search(
+                index="saas-logs-*",
+                size=0,
+                aggs={"average_response_ms": {"avg": {"field": "response_time_ms"}}},
+            )
+            average_value = average_response["aggregations"]["average_response_ms"]["value"]
+            stats_data = {
+                "total_logs": stats_response["count"],
+                "errors_5xx": errors_response["count"],
+                "average_response_ms": round(average_value or 0, 1),
+                "files_count": imports_collection.count_documents({})
+                if imports_collection.count_documents({}) > 0
+                else uploads_collection.count_documents({}),
+            }
+        except Exception:
+            log.exception("Dashboard metrics unavailable")
+        return render_template("dashboard.html", user=user, stats=stats_data)
+
+    @app.get("/upload")
+    @require_browser_login
+    def upload_page():
+        imports = list(imports_collection.find().sort("uploaded_at", -1).limit(5))
+        return render_template(
+            "upload.html",
+            imports=imports,
+            user=browser_user(),
+        )
+
+    @app.get("/search-page")
+    @require_browser_login
+    def search_page():
+        return render_template("search.html", user=browser_user())
+
+    @app.errorhandler(404)
+    def not_found(_error):
+        return render_template("404.html"), 404
 
     @app.get("/health")
     def health():
@@ -171,11 +290,19 @@ def create_app():
             "role": user["role"],
         }
         redis.setex(f"session:{token}", 3600, json.dumps(session))
-        return jsonify({
+        response = jsonify({
             "token": token,
             "expires_in": 3600,
             "user": {"id": str(user["_id"]), "email": user["email"], "role": user["role"]},
-        }), 200
+        })
+        response.set_cookie(
+            "session_token",
+            token,
+            max_age=3600,
+            httponly=True,
+            samesite="Lax",
+        )
+        return response, 200
 
     @app.post("/api/v1/auth/logout")
     @require_auth()
@@ -525,6 +652,68 @@ def create_app():
                 "/api/v1/files": {"get": {"summary": "List imported files", "security": [{"BearerAuth": []}]}},
                 "/api/v1/stats": {"get": {"summary": "Get platform statistics", "security": [{"BearerAuth": []}]}},
             },
+        }), 200
+
+    @app.post("/upload/preview")
+    def upload_preview():
+        upload = request.files.get("file")
+        if upload is None or not upload.filename:
+            return jsonify({"error": "No file provided"}), 400
+        filename = secure_filename(upload.filename)
+        suffix = Path(filename).suffix.lower()
+        if suffix not in allowed_extensions:
+            return jsonify({"error": "Format non supporté"}), 400
+
+        content = upload.read()
+        if len(content) > app.config["MAX_CONTENT_LENGTH"]:
+            return jsonify({"error": "Fichier trop volumineux"}), 400
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return jsonify({"error": "Le fichier doit utiliser UTF-8"}), 400
+
+        lines = [line for line in text.splitlines() if line][:10]
+        if not lines:
+            return jsonify({"error": "Le fichier est vide"}), 400
+
+        preview = []
+        if suffix == ".csv":
+            import csv
+            from io import StringIO
+
+            try:
+                rows = list(csv.reader(StringIO(text)))
+            except csv.Error as exc:
+                return jsonify({"error": "CSV invalide", "details": str(exc)}), 400
+            if not rows or len(rows[0]) != 12:
+                return jsonify({
+                    "error": "Le CSV doit contenir exactement 12 colonnes",
+                    "line": 1,
+                }), 400
+            header = rows[0]
+            preview = [dict(zip(header, row)) for row in rows[1:11]]
+        elif suffix == ".json":
+            import json
+
+            for index, line in enumerate(lines, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    preview.append(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    return jsonify({
+                        "error": "JSON invalide",
+                        "line": index,
+                        "details": str(exc),
+                    }), 400
+        else:
+            preview = [{"line": index, "content": line} for index, line in enumerate(lines, start=1)]
+
+        return jsonify({
+            "filename": filename,
+            "extension": suffix,
+            "size_bytes": len(content),
+            "preview": preview,
         }), 200
 
     @app.post("/upload")

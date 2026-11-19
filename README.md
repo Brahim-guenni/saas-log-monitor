@@ -94,7 +94,7 @@ Voir `.env.example` : `STACK_VERSION`, `ELASTICSEARCH_URL`, `MONGO_URI`, `REDIS_
 | S1 | Analyse, conception, dépôt Git, Docker Compose | ✅ |
 | S2 | Ingestion des logs (Logstash, upload, MongoDB) | ✅ |
 | S3 | API REST, recherche, Redis, authentification | ✅ |
-| S4 | Frontend et Kibana | ⏳ |
+| S4 | Frontend et Kibana | 🔄 |
 | S5 | Alerting | ⏳ |
 | S6 | Temps réel | ⏳ |
 | S7 | Tests et soutenance | ⏳ |
