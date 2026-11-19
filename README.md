@@ -39,6 +39,16 @@ Dans Kibana : **Stack Management → Data Views → Create** → pattern `saas-l
 Les pipelines S2 acceptent les fichiers JSON UTF-8 avec BOM et utilisent un identifiant
 deterministe pour dedupliquer les enregistrements JSON et CSV lors d'une relecture.
 
+## Upload de fichiers S2
+Envoyez un fichier CSV, JSON ou TXT avec l'API Flask :
+
+```bash
+curl -F "file=@data/uploads/logs_test_csv.csv" http://localhost:8000/upload
+```
+
+L'extension doit etre `.csv`, `.json` ou `.txt`, l'encodage doit etre UTF-8, la taille
+est limitee par `MAX_UPLOAD_MB`, et les metadonnees sont enregistrees dans MongoDB.
+
 ## Structure du dépôt
 ```
 saas-log-monitor/
@@ -62,7 +72,7 @@ Voir `.env.example` : `STACK_VERSION`, `ELASTICSEARCH_URL`, `MONGO_URI`, `REDIS_
 | Sprint | Objectif | État |
 |---|---|---|
 | S1 | Analyse, conception, dépôt Git, Docker Compose | ✅ |
-| S2 | Ingestion des logs (Logstash, upload, MongoDB) | 🔄 |
+| S2 | Ingestion des logs (Logstash, upload, MongoDB) | ✅ |
 | S3 | API REST, recherche, Redis, authentification | ⏳ |
 | S4 | Frontend et Kibana | ⏳ |
 | S5 | Alerting | ⏳ |
