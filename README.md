@@ -49,6 +49,26 @@ curl -F "file=@data/uploads/logs_test_csv.csv" http://localhost:8000/upload
 L'extension doit etre `.csv`, `.json` ou `.txt`, l'encodage doit etre UTF-8, la taille
 est limitee par `MAX_UPLOAD_MB`, et les metadonnees sont enregistrees dans MongoDB.
 
+## API S3
+Configurer `ADMIN_EMAIL` et `ADMIN_PASSWORD` dans `.env`, puis se connecter :
+
+```bash
+curl -H "Content-Type: application/json" \
+  -d "{\"email\":\"admin@example.com\",\"password\":\"<ADMIN_PASSWORD>\"}" \
+  http://localhost:8000/api/v1/auth/login
+```
+
+Utiliser le jeton Redis retourne :
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" "http://localhost:8000/api/v1/search?q=web-api&size=50&page=1"
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8000/api/v1/logs
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8000/api/v1/files
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8000/api/v1/stats
+```
+
+Documentation Swagger/OpenAPI : `http://localhost:8000/api/docs` et `/openapi.json`.
+
 ## Structure du dépôt
 ```
 saas-log-monitor/
@@ -73,7 +93,7 @@ Voir `.env.example` : `STACK_VERSION`, `ELASTICSEARCH_URL`, `MONGO_URI`, `REDIS_
 |---|---|---|
 | S1 | Analyse, conception, dépôt Git, Docker Compose | ✅ |
 | S2 | Ingestion des logs (Logstash, upload, MongoDB) | ✅ |
-| S3 | API REST, recherche, Redis, authentification | ⏳ |
+| S3 | API REST, recherche, Redis, authentification | ✅ |
 | S4 | Frontend et Kibana | ⏳ |
 | S5 | Alerting | ⏳ |
 | S6 | Temps réel | ⏳ |
